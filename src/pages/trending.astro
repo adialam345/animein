@@ -1,0 +1,42 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AnimeCard from '../components/AnimeCard.astro';
+import { animeApi } from '../services/anime';
+
+const trendingAnime = await animeApi.getRecommended();
+
+const normalizeAnime = (anime: any) => ({
+  id: anime.url,
+  title: anime.judul,
+  coverImage: anime.cover,
+  rating: anime.score || 'N/A',
+  type: anime.rilis || 'Trending',
+  status: anime.total_episode ? `${anime.total_episode} Eps` : 'Ongoing'
+});
+---
+
+<Layout title="Trending Anime - AnimeIn">
+  <main class="min-h-screen pt-24 pb-20">
+    <div class="container mx-auto px-4 md:px-8">
+      <div class="mb-12 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-1.5 bg-[#8e44ad] rounded-full shadow-[0_0_15px_rgba(142,68,173,0.5)]"></div>
+          <h1 class="text-4xl md:text-5xl font-black text-white tracking-tight">Trending Anime</h1>
+        </div>
+        <p class="text-zinc-500 font-medium text-lg ml-4">Koleksi anime yang paling banyak dicari dan populer saat ini.</p>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
+        {trendingAnime.map(anime => (
+          <AnimeCard {...normalizeAnime(anime)} />
+        ))}
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .container {
+    max-width: 1200px;
+  }
+</style>

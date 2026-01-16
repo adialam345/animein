@@ -1,0 +1,54 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout title="Donasi - AnimeIn">
+  <main class="min-h-screen pt-24 md:pt-32 pb-12 flex items-center justify-center">
+    <div class="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-[20%] right-[10%] w-[400px] h-[400px] bg-[#8e44ad]/10 rounded-full blur-[120px]"></div>
+      <div class="absolute bottom-[10%] left-[5%] w-[300px] h-[300px] bg-[#a569bd]/10 rounded-full blur-[100px]"></div>
+    </div>
+
+    <div class="container mx-auto px-4 relative z-10">
+      <div class="max-w-md mx-auto text-center space-y-8 animate-fade-in-up">
+        <div class="space-y-4">
+          <div class="inline-flex p-4 rounded-3xl bg-[#8e44ad]/10 border border-[#8e44ad]/20 text-[#a569bd] mb-2">
+             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+          </div>
+          <h1 class="text-3xl md:text-4xl font-black text-white tracking-tight">Traktir Kopi ☕</h1>
+          <p class="text-zinc-400 font-medium leading-relaxed">
+            Dukunganmu sangat berarti bagi kami untuk terus memberikan update anime terbaru setiap hari!
+          </p>
+        </div>
+
+        <div class="bg-white p-6 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5 mx-auto w-72 aspect-square relative group">
+          <div class="absolute inset-0 bg-[#8e44ad]/5 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+          {/* Ganti dengan URL gambar QRIS yang valid */}
+          <div class="w-full h-full flex items-center justify-center bg-zinc-100 rounded-2xl relative overflow-hidden">
+             {/* Placeholder for QRIS */}
+             <div class="text-zinc-400 text-center p-4">
+               <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-2 opacity-20"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/></svg>
+               <span class="text-[10px] font-black uppercase tracking-widest block">Scan QRIS Here</span>
+             </div>
+             {/* <img src="/qris_donasi.jpg" alt="QRIS" class="w-full h-full object-contain" /> */}
+          </div>
+        </div>
+
+        <div class="p-4 bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-2xl">
+          <p class="text-xs font-black text-zinc-500 uppercase tracking-[0.2em] mb-1">Payment Method</p>
+          <p class="text-sm font-bold text-zinc-300">SCAN QRIS (ALL E-WALLET & BANK)</p>
+        </div>
+
+        <p class="text-[10px] text-zinc-600 font-bold italic uppercase tracking-widest">
+          "Donasi untuk biaya server & kopi fix bug" ✌️
+        </p>
+
+        <a href="/" class="inline-flex items-center gap-2 text-sm font-bold text-[#a569bd] hover:text-white transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          Kembali ke Beranda
+        </a>
+      </div>
+    </div>
+  </main>
+</Layout>

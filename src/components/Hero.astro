@@ -1,0 +1,101 @@
+---
+---
+
+<section class="relative w-full pt-20 pb-8 md:pt-32 md:pb-12 flex items-center overflow-hidden">
+  {/* Ambient Background Gradient */}
+  <div class="fixed inset-0 bg-[radial-gradient(circle_at_top,_rgba(142,68,173,0.15)_0%,_transparent_50%)] pointer-events-none -z-10"></div>
+  <div class="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+
+  <div class="container mx-auto px-4 md:px-8 relative z-20">
+    <div class="max-w-5xl mx-auto text-center">
+      {/* Main Title - Stacked Layers for Perfect Alignment */}
+      <div class="relative inline-grid place-items-center mb-8 animate-fade-in-up hero-title">
+        {/* Base Layer */}
+        <h1 class="col-start-1 row-start-1 text-6xl md:text-9xl font-black tracking-tight leading-tight hero-title-text">
+          AnimeIn
+        </h1>
+        {/* Shimmer Overlay Layer */}
+        <h1 class="col-start-1 row-start-1 text-6xl md:text-9xl font-black tracking-tight leading-tight hero-shimmer" aria-hidden="true">
+          AnimeIn
+        </h1>
+      </div>
+
+      {/* Description */}
+      <p class="text-zinc-400 text-lg md:text-2xl max-w-3xl mx-auto mb-10 leading-relaxed font-light animate-fade-in-up delay-100">
+        Nikmati ribuan judul anime terbaru dengan kualitas terbaik.<br class="hidden md:block" /> 
+        Stream kapan saja, di mana saja tanpa batas.
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero-title {
+    perspective: 1000px;
+  }
+
+  .hero-title-text {
+    background: linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #e4e4e7 25%,
+      #a1a1aa 50%,
+      #71717a 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-shimmer {
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      transparent 35%,
+      rgba(255, 255, 255, 0.4) 45%,
+      rgba(255, 255, 255, 1) 50%,
+      rgba(255, 255, 255, 0.4) 55%,
+      transparent 65%,
+      transparent 100%
+    );
+    background-size: 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    z-index: 2;
+    animation: shimmer3D 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    pointer-events: none;
+    transform-style: preserve-3d;
+  }
+
+  @keyframes shimmer3D {
+    0% {
+      background-position: 150% center;
+    }
+    100% {
+      background-position: -150% center;
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  .delay-100 {
+    animation-delay: 100ms;
+  }
+</style>

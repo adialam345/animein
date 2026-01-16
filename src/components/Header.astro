@@ -1,0 +1,61 @@
+---
+const currentPath = Astro.url.pathname;
+---
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-zinc-950/60 backdrop-blur-xl border-b border-white/5 transition-all duration-300" style="-webkit-backdrop-filter: blur(24px);">
+  <div class="container mx-auto px-4 py-3 md:py-4">
+    <div class="flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 group">
+        <div class="flex items-center font-black tracking-tighter text-[22px] md:text-2xl filter drop-shadow-[2px_2px_2px_rgba(0,0,0,0.9)]">
+          <span class="bg-gradient-to-b from-white via-gray-200 to-gray-400 bg-clip-text text-transparent">ANIME</span>
+          <span class="text-[#8e44ad]">IN</span>
+        </div>
+      </a>
+
+      <nav class="hidden md:flex items-center gap-6">
+        <a href="/" class={`text-sm font-medium transition-colors duration-300 ${currentPath === '/' ? 'text-[#8e44ad]' : 'text-zinc-400 hover:text-white'}`}>
+          Beranda
+        </a>
+        <a href="/trending" class={`text-sm font-medium transition-colors duration-300 ${currentPath.includes('/trending') ? 'text-[#8e44ad]' : 'text-zinc-400 hover:text-white'}`}>
+          Trending
+        </a>
+        <a href="/movies" class={`text-sm font-medium transition-colors duration-300 ${currentPath.includes('/movies') ? 'text-[#8e44ad]' : 'text-zinc-400 hover:text-white'}`}>
+          Movies
+        </a>
+        <a href="/donasi" class={`text-sm font-bold transition-all duration-300 relative ${currentPath === '/donasi' ? 'text-yellow-400' : 'text-yellow-500/80 hover:text-yellow-400'} animate-pulse`}>
+          DONASI
+          <span class="absolute -top-1 -right-1 flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
+          </span>
+        </a>
+      </nav>
+
+      <div class="hidden md:flex items-center gap-4">
+        <button data-open-search class="p-2.5 hover:bg-white/10 rounded-full transition-all duration-300 text-zinc-400 hover:text-white" aria-label="Cari anime">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+        </button>
+        <button class="bg-[#8e44ad] hover:bg-[#a569bd] text-white px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 shadow-[0_5px_15px_rgba(142,68,173,0.3)]">
+          Login
+        </button>
+      </div>
+
+      <!-- Mobile Search Toggle -->
+      <button data-open-search class="md:hidden p-2 text-zinc-400" aria-label="Cari anime">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<style>
+  .container {
+    max-width: 1200px;
+  }
+</style>

@@ -1,0 +1,22 @@
+{
+    "name": "ANIMEIN | Ultimate Anime Portal",
+    "short_name": "ANIMEIN",
+    "description": "Experience anime like never before. High-quality streams and latest updates.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0a0c",
+    "theme_color": "#8e44ad",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "entertainment",
+        "video"
+    ]
+}

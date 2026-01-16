@@ -1,0 +1,132 @@
+---
+export const prerender = false;
+import Layout from '../../layouts/Layout.astro';
+import Footer from '../../components/Footer.astro';
+import { animeApi } from '../../services/anime';
+
+const { episodeId } = Astro.params;
+const videoData = await animeApi.getVideo(episodeId as string);
+
+if (!videoData || !videoData.video || videoData.video.length === 0) {
+    return Astro.redirect('/404');
+}
+
+// Default to highest resolution available
+const defaultVideo = videoData.video[videoData.video.length - 1];
+---
+
+<Layout title={`Watching ${videoData.episode_id} | ANIMEIN`}>
+  <main class="min-h-screen pt-20 pb-12">
+    {/* Ambient Background Gradient */}
+    <div class="fixed inset-0 bg-[radial-gradient(circle_at_top,_rgba(142,68,173,0.1)_0%,_transparent_50%)] pointer-events-none -z-10"></div>
+
+    <div class="container mx-auto px-4 md:px-8">
+      {/* breadcrumbs-like navigation */}
+      <nav class="flex items-center gap-4 mb-8">
+        <a 
+          href="javascript:history.back()" 
+          class="group flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 backdrop-blur-md transition-all duration-300"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-500 group-hover:text-white transition-colors">
+            <path d="m15 18-6-6 6-6"></path>
+          </svg>
+          <span class="text-sm font-bold text-zinc-400 group-hover:text-white transition-colors">Back</span>
+        </a>
+      </nav>
+
+      <div class="max-w-6xl mx-auto space-y-8">
+        {/* Player Section */}
+        <div class="space-y-6 animate-fade-in-up">
+          <div class="relative group">
+            <div class="relative rounded-3xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] bg-black border border-white/5 aspect-video">
+              <iframe 
+                src={defaultVideo.link} 
+                allowfullscreen 
+                class="w-full h-full border-none"
+                id="main-player"
+              ></iframe>
+            </div>
+          </div>
+
+          {/* Episode Info & Quality Selector */}
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-2 bg-white/5 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-white/5 space-y-4">
+              <div class="space-y-1">
+                <span class="text-[#a569bd] font-black text-xs uppercase tracking-[0.2em]">Now Playing</span>
+                <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">
+                  Episode {videoData.episode_id.split('-').pop()}
+                </h1>
+              </div>
+              <p class="text-zinc-500 font-medium text-sm leading-relaxed">
+                ID: {videoData.episode_id}. Jika video tidak berputar, silakan coba ganti resolusi atau gunakan browser Chrome.
+              </p>
+            </div>
+
+            <div class="bg-white/5 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-white/10 flex flex-col justify-center gap-4">
+              <h3 class="text-white font-black text-xs uppercase tracking-widest text-center">Select Quality</h3>
+              <div class="flex flex-wrap items-center justify-center gap-2">
+                {videoData.video.map((v, index) => (
+                  <button 
+                    class={`server-btn px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 border ${
+                      index === videoData.video.length - 1 
+                        ? 'bg-[#8e44ad] border-[#8e44ad] text-white shadow-[0_0_15px_rgba(142,68,173,0.4)]' 
+                        : 'bg-white/5 border-white/5 text-zinc-500 hover:border-white/20 hover:text-white'
+                    }`}
+                    data-link={v.link}
+                  >
+                    {v.reso}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Support/Notice */}
+        <div class="bg-gradient-to-r from-[#8e44ad]/10 to-transparent p-6 rounded-3xl border border-[#8e44ad]/20 flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-[#8e44ad]/20 flex items-center justify-center text-[#a569bd] shrink-0">
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <p class="text-zinc-400 text-sm font-medium">
+            Beberapa mirror mungkin terblokir di wilayah tertentu. Hubungi komunitas jika Anda terus mengalami kendala pemutaran.
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  function initPlayer() {
+    const buttons = document.querySelectorAll('.server-btn');
+    const player = document.getElementById('main-player') as HTMLIFrameElement;
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const link = btn.getAttribute('data-link');
+        if (link && player) {
+          player.src = link;
+          
+          // Update active state
+          buttons.forEach(b => {
+            b.classList.remove('bg-[#8e44ad]', 'border-[#8e44ad]', 'text-white', 'shadow-[0_0_15px_rgba(142,68,173,0.4)]');
+            b.classList.add('bg-white/5', 'border-white/5', 'text-zinc-500');
+          });
+          btn.classList.add('bg-[#8e44ad]', 'border-[#8e44ad]', 'text-white', 'shadow-[0_0_15px_rgba(142,68,173,0.4)]');
+          btn.classList.remove('bg-white/5', 'border-white/5', 'text-zinc-500');
+        }
+      });
+    });
+  }
+
+  // Run on page load and View Transitions
+  initPlayer();
+  document.addEventListener('astro:page-load', initPlayer);
+</script>
+
+<style>
+  .container {
+    max-width: 1200px;
+  }
+</style>
