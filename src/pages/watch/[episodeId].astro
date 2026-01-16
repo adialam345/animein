@@ -11,8 +11,18 @@ if (!videoData || !videoData.video || videoData.video.length === 0) {
     return Astro.redirect('/404');
 }
 
-// Default to highest resolution available
-const defaultVideo = videoData.video[videoData.video.length - 1];
+// Prioritize cleaner video sources (blogger, mega first, then others)
+const priorityOrder = ['blogger.com', 'mega.nz', 'b-cdn.net', 'drive.google'];
+const sortedVideos = [...videoData.video].sort((a, b) => {
+    const aPriority = priorityOrder.findIndex(p => a.link?.includes(p));
+    const bPriority = priorityOrder.findIndex(p => b.link?.includes(p));
+    const aScore = aPriority === -1 ? 999 : aPriority;
+    const bScore = bPriority === -1 ? 999 : bPriority;
+    return aScore - bScore;
+});
+
+// Default to first prioritized (cleanest) source
+const defaultVideo = sortedVideos[0] || videoData.video[0];
 ---
 
 <Layout title={`Watching ${videoData.episode_id} | ANIMEIN`}>
@@ -37,11 +47,27 @@ const defaultVideo = videoData.video[videoData.video.length - 1];
       <div class="max-w-6xl mx-auto space-y-8">
         {/* Player Section */}
         <div class="space-y-6 animate-fade-in-up">
-          <div class="relative group">
+          <div class="relative group" id="player-wrapper">
             <div class="relative rounded-3xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] bg-black border border-white/5 aspect-video">
+              {/* Anti-redirect overlay - click to activate player */}
+              <div id="player-overlay" class="absolute inset-0 z-20 bg-black/60 backdrop-blur-sm flex items-center justify-center cursor-pointer transition-all duration-300 hover:bg-black/40">
+                <div class="text-center space-y-4">
+                  <div class="w-20 h-20 mx-auto rounded-full bg-[#8e44ad]/30 flex items-center justify-center border-2 border-[#8e44ad] animate-pulse">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="white" class="ml-1">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </div>
+                  <div class="space-y-2">
+                    <p class="text-white font-bold text-lg">Klik untuk Putar Video</p>
+                    <p class="text-zinc-400 text-sm max-w-xs">Proteksi anti-redirect aktif. Klik sekali untuk mengaktifkan player.</p>
+                  </div>
+                </div>
+              </div>
               <iframe 
                 src={defaultVideo.link} 
                 allowfullscreen 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                referrerpolicy="no-referrer"
                 class="w-full h-full border-none"
                 id="main-player"
               ></iframe>
@@ -87,9 +113,10 @@ const defaultVideo = videoData.video[videoData.video.length - 1];
           <div class="w-12 h-12 rounded-2xl bg-[#8e44ad]/20 flex items-center justify-center text-[#a569bd] shrink-0">
              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
-          <p class="text-zinc-400 text-sm font-medium">
-            Beberapa mirror mungkin terblokir di wilayah tertentu. Hubungi komunitas jika Anda terus mengalami kendala pemutaran.
-          </p>
+          <div class="text-zinc-400 text-sm font-medium space-y-1">
+            <p><strong class="text-white">Tips:</strong> Jika masih ada redirect, tutup tab iklan lalu kembali ke sini dan klik lagi. Atau coba ganti server/kualitas lain.</p>
+            <p class="text-xs text-zinc-500">Gunakan browser dengan adblocker (uBlock Origin) untuk pengalaman terbaik.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -101,12 +128,34 @@ const defaultVideo = videoData.video[videoData.video.length - 1];
   function initPlayer() {
     const buttons = document.querySelectorAll('.server-btn');
     const player = document.getElementById('main-player') as HTMLIFrameElement;
+    const overlay = document.getElementById('player-overlay');
 
+    // Handle overlay click - activate player
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        overlay.style.opacity = '0';
+        overlay.style.pointerEvents = 'none';
+        setTimeout(() => {
+          overlay.style.display = 'none';
+        }, 300);
+      });
+    }
+
+    // Handle server button clicks
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
         const link = btn.getAttribute('data-link');
         if (link && player) {
           player.src = link;
+          
+          // Re-show overlay for new server (protection)
+          if (overlay) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
+          }
           
           // Update active state
           buttons.forEach(b => {

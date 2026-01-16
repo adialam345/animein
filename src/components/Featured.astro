@@ -60,7 +60,7 @@ const normalizeMovie = (anime: any) => ({
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
-          {latestAnime.slice(0, 12).map(anime => (
+          {latestAnime.map(anime => (
             <AnimeCard {...normalizeLatest(anime)} />
           ))}
         </div>
@@ -85,7 +85,7 @@ const normalizeMovie = (anime: any) => ({
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
-          {recommendedAnime.slice(0, 12).map(anime => (
+          {recommendedAnime.map(anime => (
             <AnimeCard {...normalizeRecommended(anime)} />
           ))}
         </div>
@@ -110,7 +110,7 @@ const normalizeMovie = (anime: any) => ({
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6">
-          {movieAnime.slice(0, 12).map(anime => (
+          {movieAnime.map(anime => (
             <AnimeCard {...normalizeMovie(anime)} />
           ))}
         </div>

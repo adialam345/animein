@@ -2,6 +2,7 @@
 import Header from '../components/Header.astro';
 import BottomNav from '../components/BottomNav.astro';
 import SearchModal from '../components/SearchModal.astro';
+import { ViewTransitions } from 'astro:transitions';
 import '../styles/global.css';
 
 interface Props {
@@ -55,12 +56,44 @@ const {
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<meta name="apple-mobile-web-app-title" content="ANIMEIN" />
 		<link rel="apple-touch-icon" href="/icon-512.png" />
+		<ViewTransitions />
 	</head>
 	<body>
+		<div id="loading-bar" class="fixed top-0 left-0 h-1 bg-[#8e44ad] z-[9999] transition-all duration-300 w-0 opacity-0 pointer-events-none shadow-[0_0_10px_rgba(142,68,173,0.8)]"></div>
 		<Header />
 		<slot />
 		<BottomNav />
 		<SearchModal />
+
+		<script>
+			document.addEventListener('astro:before-preparation', () => {
+				const bar = document.getElementById('loading-bar');
+				if (bar) {
+					bar.style.width = '30%';
+					bar.style.opacity = '1';
+				}
+			});
+
+			document.addEventListener('astro:before-send-dom', () => {
+				const bar = document.getElementById('loading-bar');
+				if (bar) {
+					bar.style.width = '70%';
+				}
+			});
+
+			document.addEventListener('astro:after-navigation', () => {
+				const bar = document.getElementById('loading-bar');
+				if (bar) {
+					bar.style.width = '100%';
+					setTimeout(() => {
+						bar.style.opacity = '0';
+						setTimeout(() => {
+							if (bar) bar.style.width = '0%';
+						}, 300);
+					}, 200);
+				}
+			});
+		</script>
 	</body>
 </html>
 

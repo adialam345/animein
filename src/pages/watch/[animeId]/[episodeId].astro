@@ -1,0 +1,414 @@
+---
+export const prerender = false;
+import Layout from '../../../layouts/Layout.astro';
+import Footer from '../../../components/Footer.astro';
+import { animeApi } from '../../../services/anime';
+
+const { animeId, episodeId } = Astro.params;
+
+// Fetch both video data and anime detail from Animasu in parallel
+const [anime, animasuVideoData] = await Promise.all([
+    animeApi.getDetail(animeId as string),
+    animeApi.getVideo(episodeId as string)
+]);
+
+if (!anime) {
+    return Astro.redirect('/404');
+}
+
+const episodes = anime.episodes ? [...anime.episodes].reverse() : [];
+const currentEpisodeIndex = episodes.findIndex(ep => ep.url === episodeId) ?? -1;
+const currentEpisode = episodes[currentEpisodeIndex];
+
+// Fetch alternative sources from Nimegami (after we have the title from Animasu detail)
+let allVideoSources = animasuVideoData?.video || [];
+
+// For movies, episode might not exist in list - use "1" as default
+const episodeNumber = currentEpisode?.ch || "1";
+console.log('[DEBUG] Fetching Nimegami for:', anime.judul, 'Episode:', episodeNumber);
+
+try {
+    const nimegamiSources = await animeApi.getNimegamiVideo(anime.judul, episodeNumber);
+    console.log('[DEBUG] Nimegami sources found:', nimegamiSources.length);
+    allVideoSources = [...allVideoSources, ...nimegamiSources];
+} catch (e) {
+    console.error('Nimegami fetch failed:', e);
+}
+
+if (allVideoSources.length === 0) {
+    // If no video sources at all, then 404
+    return Astro.redirect('/404');
+}
+
+// Prioritize cleaner video sources & higher resolution
+const priorityOrder = ['blogger.com', 'mega.nz', 'b-cdn.net', 'drive.google'];
+const sortedVideos = [...allVideoSources].sort((a, b) => {
+    const aPriority = priorityOrder.findIndex(p => a.link?.includes(p));
+    const bPriority = priorityOrder.findIndex(p => b.link?.includes(p));
+    const aScore = aPriority === -1 ? 999 : aPriority;
+    const bScore = bPriority === -1 ? 999 : bPriority;
+    
+    if (aScore !== bScore) {
+        return aScore - bScore;
+    }
+
+    // Secondary sort: Higher resolution first
+    const getResValue = (res: string) => {
+        if (res.includes('1080')) return 1080;
+        if (res.includes('720')) return 720;
+        if (res.includes('480')) return 480;
+        if (res.includes('360')) return 360;
+        return 0;
+    };
+    return getResValue(b.reso) - getResValue(a.reso);
+});
+
+// Validate video URLs - filter out broken links (limit to first 10 for speed)
+const toValidate = sortedVideos.slice(0, 10); // Only validate first 10 servers
+console.log('[DEBUG] Validating', toValidate.length, 'video sources...');
+
+// Add global timeout for validation (8 seconds max)
+const validationPromise = Promise.all(
+    toValidate.map(async (v) => {
+        const isValid = await animeApi.validateVideoUrl(v.link);
+        return { ...v, isValid };
+    })
+);
+
+let validationResults;
+try {
+    validationResults = await Promise.race([
+        validationPromise,
+        new Promise<typeof toValidate>((_, reject) => 
+            setTimeout(() => reject(new Error('Validation timeout')), 8000)
+        )
+    ]);
+} catch (e) {
+    console.log('[DEBUG] Validation timed out, using all sources');
+    validationResults = toValidate.map(v => ({ ...v, isValid: true })); // Assume all valid on timeout
+}
+
+const validVideos = validationResults.filter(v => v.isValid);
+console.log('[DEBUG] Valid sources:', validVideos.length, '/', toValidate.length);
+
+// Use validated videos for display, fallback to sorted if none valid
+const finalVideoSources = validVideos.length > 0 ? validVideos : sortedVideos;
+const defaultVideo = finalVideoSources[0];
+const epIdDisplay = currentEpisode?.ch || episodeId;
+
+// Array is now [Ep 1, Ep 2, Ep 3...] (Ascending)
+// Next episode is index + 1, Prev episode is index - 1
+const nextEpisode = currentEpisodeIndex < episodes.length - 1 ? episodes[currentEpisodeIndex + 1] : null;
+const prevEpisode = currentEpisodeIndex > 0 ? episodes[currentEpisodeIndex - 1] : null;
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [{
+    "@type": "ListItem",
+    "position": 1,
+    "name": "Home",
+    "item": Astro.url.origin
+  },{
+    "@type": "ListItem",
+    "position": 2,
+    "name": anime.judul,
+    "item": `${Astro.url.origin}/anime/${animeId}`
+  },{
+    "@type": "ListItem",
+    "position": 3,
+    "name": `Episode ${currentEpisode?.ch || episodeId}`,
+    "item": Astro.url.href
+  }]
+};
+---
+
+<Layout title={`Nonton ${anime.judul} Episode ${currentEpisode?.ch || ''} Sub Indo - ANIMEIN`}>
+  <script type="application/ld+json" is:inline set:html={JSON.stringify(breadcrumbSchema)} slot="head" />
+  
+  <main class="min-h-screen pt-20 pb-12 relative">
+    {/* Ambient Background Gradient */}
+    <div class="fixed inset-0 bg-[radial-gradient(circle_at_top,_rgba(142,68,173,0.15)_0%,_transparent_50%)] pointer-events-none -z-10"></div>
+    <div class="fixed inset-0 bg-[#0a0a0c] -z-20"></div>
+
+    <div class="container mx-auto px-4 md:px-8">
+      {/* Navigation Bar */}
+      <nav class="flex items-center justify-between mb-8">
+        <a 
+          href={`/anime/${animeId}`} 
+          class="group flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 backdrop-blur-md transition-all duration-300"
+        >
+          <div class="bg-zinc-800 group-hover:bg-[#8e44ad] rounded-full p-1.5 transition-colors duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-500 group-hover:text-white transition-colors">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+          </div>
+          <span class="text-sm font-bold text-zinc-400 group-hover:text-white transition-colors">Kembali ke Detail</span>
+        </a>
+
+        <div class="hidden md:flex items-center gap-3">
+           <span class="text-zinc-500 text-[10px] font-black uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-white/5">
+             {anime.status}
+           </span>
+           <span class="text-yellow-500 text-[10px] font-black uppercase tracking-widest bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
+             ★ {anime.score}
+           </span>
+        </div>
+      </nav>
+
+      <div class="max-w-6xl mx-auto space-y-6">
+        {/* Server Selector - Di atas player (horizontal scroll on mobile) */}
+        <div class="bg-white/5 backdrop-blur-md rounded-2xl p-3 md:p-4 border border-white/10 animate-fade-in-up">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 shrink-0">
+               <div class="w-1 h-4 bg-[#8e44ad] rounded-full"></div>
+               <h3 class="text-white font-black text-[9px] md:text-[10px] uppercase tracking-widest whitespace-nowrap">Server</h3>
+            </div>
+            <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1 -mb-1">
+              {finalVideoSources.map((v, index) => (
+                <button 
+                  class={`server-btn px-3 py-1.5 rounded-lg text-[8px] md:text-[9px] font-black uppercase tracking-wider transition-all duration-300 border whitespace-nowrap shrink-0 ${
+                    v.link === defaultVideo.link
+                      ? 'bg-[#8e44ad] border-[#8e44ad] text-white shadow-lg shadow-[#8e44ad]/20' 
+                      : 'bg-white/5 border-white/5 text-zinc-500 hover:border-white/20 hover:text-white'
+                  }`}
+                  data-link={v.link}
+                  data-is-direct={v.isDirect ? 'true' : 'false'}
+                >
+                  {v.reso}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Player Section */}
+        <div class="space-y-6 animate-fade-in-up">
+          <div class="relative group" id="player-wrapper">
+            <div class="relative rounded-3xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] bg-black border border-white/5 aspect-video md:aspect-[21/9] lg:aspect-video">
+              {/* Anti-redirect overlay */}
+              <div id="player-overlay" class="absolute inset-0 z-20 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center cursor-pointer transition-all duration-500 hover:bg-black/40">
+                <div class="text-center space-y-4">
+                  <div class="w-20 h-20 mx-auto rounded-full bg-[#8e44ad]/30 flex items-center justify-center border-2 border-[#8e44ad] animate-pulse">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="white" class="ml-1">
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </div>
+                  <div class="space-y-2">
+                    <p class="text-white font-black text-xl uppercase tracking-tight">Klik untuk Putar</p>
+                    <p class="text-zinc-400 text-xs font-medium max-w-[250px] mx-auto">Proteksi anti-redirect aktif. Klik untuk mengaktifkan player.</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Conditional: HTML5 Video for direct links, iframe for embeds */}
+              {defaultVideo.isDirect ? (
+                <video 
+                  src={defaultVideo.link}
+                  controls
+                  autoplay
+                  class="w-full h-full border-none bg-black"
+                  id="main-player"
+                  data-is-direct="true"
+                ></video>
+              ) : (
+                <iframe 
+                  src={defaultVideo.link} 
+                  allowfullscreen 
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                  referrerpolicy="no-referrer"
+                  class="w-full h-full border-none"
+                  id="main-player"
+                  data-is-direct="false"
+                ></iframe>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Navigation Buttons (Mobile Optimized) */}
+          <div class="flex items-center gap-3 w-full">
+            {prevEpisode && (
+              <a 
+                href={`/watch/${animeId}/${prevEpisode.url}`}
+                class="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl bg-white/5 border border-white/5 text-zinc-400 hover:text-white hover:bg-white/10 transition-all duration-300"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                <span class="text-xs font-black uppercase tracking-wider">Prev</span>
+              </a>
+            )}
+            
+            <div class="flex-[1.5] flex items-center justify-center py-4 rounded-2xl bg-[#8e44ad]/10 border border-[#8e44ad]/20 text-[#a569bd]">
+                <span class="text-[10px] font-black uppercase tracking-[0.2em]">EP {currentEpisode?.ch}</span>
+            </div>
+
+            {nextEpisode && (
+              <a 
+                href={`/watch/${animeId}/${nextEpisode.url}`}
+                class="flex-2 flex items-center justify-center gap-2 py-4 rounded-2xl bg-[#8e44ad] text-white shadow-xl shadow-[#8e44ad]/20 hover:bg-[#a569bd] transition-all duration-300"
+              >
+                <span class="text-xs font-black uppercase tracking-wider ml-2">Next</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              </a>
+            )}
+          </div>
+
+          {/* Episode Info & Server Selector */}
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 bg-white/5 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-white/5 space-y-4">
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                   <span class="px-3 py-1 bg-[#8e44ad]/20 text-[#a569bd] rounded-lg text-[10px] font-black uppercase tracking-wider">Episode {currentEpisode?.ch || ''}</span>
+                   <span class="text-zinc-600 font-bold text-[10px] uppercase tracking-widest">Now Playing</span>
+                </div>
+                <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight">
+                  {anime.judul}
+                </h1>
+              </div>
+              <p class="text-zinc-500 font-medium text-sm leading-relaxed max-w-2xl">
+                Sedang menonton episode {currentEpisode?.ch}. Gunakan browser Chrome/Brave jika video tidak berputar atau terhambat iklan.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Episode List (Dramain style grid) */}
+        <div class="bg-white/5 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-white/5">
+          <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-3">
+              <div class="w-1.5 h-6 bg-[#8e44ad] rounded-full"></div>
+              <h2 class="text-xl font-bold text-white uppercase tracking-wider">Daftar Episode</h2>
+            </div>
+            <span class="text-zinc-500 font-black text-[10px] uppercase tracking-widest bg-white/5 px-4 py-2 rounded-xl">
+              {currentEpisodeIndex + 1} / {episodes.length} ESP
+            </span>
+          </div>
+
+          <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+            {episodes.map((ep, index) => {
+              const isActive = ep.url === episodeId;
+              return (
+                <a 
+                  href={`/watch/${animeId}/${ep.url}`}
+                  class={`group relative flex items-center justify-center aspect-square rounded-xl text-xs font-black transition-all duration-300 border ${
+                    isActive
+                      ? 'bg-[#8e44ad] border-[#a569bd] text-white shadow-lg shadow-[#8e44ad]/30 scale-105 z-10'
+                      : 'bg-zinc-900 border-white/5 text-zinc-500 hover:bg-zinc-800 hover:text-white hover:border-white/20'
+                  }`}
+                >
+                  {ep.ch}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Support/Tips */}
+        <div class="bg-gradient-to-r from-[#8e44ad]/10 to-transparent p-6 rounded-3xl border border-[#8e44ad]/20 flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-[#8e44ad]/20 flex items-center justify-center text-[#a569bd] shrink-0">
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="text-zinc-400 text-sm font-medium space-y-1">
+            <p><strong class="text-white">Tips:</strong> Jika video "Not Available" atau "Sandboxed", coba klik tombol "Putar" lagi atau ganti server. Gunakan Chrome/Brave untuk pengalaman terbaik.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<script>
+  function initPlayer() {
+    const buttons = document.querySelectorAll('.server-btn');
+    const player = document.getElementById('main-player') as HTMLIFrameElement;
+    const overlay = document.getElementById('player-overlay');
+    const wrapper = document.getElementById('player-wrapper');
+
+    if (overlay) {
+      overlay.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        overlay.style.opacity = '0';
+        overlay.style.pointerEvents = 'none';
+        setTimeout(() => {
+          overlay.style.display = 'none';
+        }, 500);
+      });
+    }
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const link = btn.getAttribute('data-link');
+        const isDirect = btn.getAttribute('data-is-direct') === 'true';
+        
+        if (!link) return;
+        
+        const playerContainer = document.querySelector('.aspect-video');
+        const currentPlayer = document.getElementById('main-player');
+        
+        if (playerContainer && currentPlayer) {
+          // Remove current player
+          currentPlayer.remove();
+          
+          if (isDirect) {
+            // Create HTML5 video element for direct links
+            const video = document.createElement('video');
+            video.src = link;
+            video.controls = true;
+            video.autoplay = true;
+            video.className = 'w-full h-full border-none bg-black';
+            video.id = 'main-player';
+            video.setAttribute('data-is-direct', 'true');
+            playerContainer.appendChild(video);
+          } else {
+            // Create iframe for embed links
+            const iframe = document.createElement('iframe');
+            iframe.src = link;
+            iframe.className = 'w-full h-full border-none';
+            iframe.id = 'main-player';
+            iframe.setAttribute('allowfullscreen', '');
+            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen');
+            iframe.setAttribute('referrerpolicy', 'no-referrer');
+            iframe.setAttribute('data-is-direct', 'false');
+            playerContainer.appendChild(iframe);
+          }
+          
+          if (overlay) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
+          }
+          
+          buttons.forEach(b => {
+            b.classList.remove('bg-[#8e44ad]', 'border-[#8e44ad]', 'text-white', 'shadow-lg', 'shadow-[#8e44ad]/20');
+            b.classList.add('bg-white/5', 'border-white/5', 'text-zinc-500');
+          });
+          btn.classList.add('bg-[#8e44ad]', 'border-[#8e44ad]', 'text-white', 'shadow-lg', 'shadow-[#8e44ad]/20');
+          btn.classList.remove('bg-white/5', 'border-white/5', 'text-zinc-500');
+        }
+      });
+    });
+  }
+
+  document.addEventListener('astro:page-load', initPlayer);
+  initPlayer();
+</script>
+
+<style>
+  .container {
+    max-width: 1200px;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+</style>
