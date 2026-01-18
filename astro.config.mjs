@@ -13,7 +13,10 @@ export default defineConfig({
   })],
   vite: {
     server: {
-      allowedHosts: ['animein.nontonin.site']
+      allowedHosts: ['animein.nontonin.site', 'dramain.nontonin.site', 'nontonin.site']
+    },
+    preview: {
+      allowedHosts: ['animein.nontonin.site', 'dramain.nontonin.site', 'nontonin.site']
     }
   }
 });
