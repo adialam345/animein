@@ -10,5 +10,10 @@ export default defineConfig({
   }),
   integrations: [tailwind({
     applyBaseStyles: false
-  })]
+  })],
+  vite: {
+    server: {
+      allowedHosts: ['animein.nontonin.site']
+    }
+  }
 });
