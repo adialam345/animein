@@ -1,0 +1,119 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Test IP User | ANIMEIN">
+    <main class="min-h-screen bg-[#0a0a0a] pt-24 pb-20">
+        <div class="container mx-auto px-4 max-w-4xl">
+            <div class="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8 backdrop-blur-xl">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="w-12 h-12 bg-[#8e44ad]/20 rounded-2xl flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8e44ad" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-black text-white">IP Detection Test</h1>
+                        <p class="text-zinc-500">Mengecek IP mana yang menembus API: Server vs Browser User.</p>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    {/* Server Side Section */}
+                    <div class="bg-black/40 rounded-2xl p-6 border border-zinc-800">
+                        <div class="flex items-center gap-2 mb-4 text-sm font-bold text-zinc-400 uppercase tracking-widest">
+                            <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                            Server (Laptop/VPS)
+                        </div>
+                        <div id="server-status" class="text-zinc-400 text-sm">Menghubungi IP Checker Server...</div>
+                        <div id="server-ip" class="mt-2 text-xl font-mono text-blue-400">Loading...</div>
+                        <div id="server-api-status" class="mt-4 p-2 rounded bg-zinc-800/50 text-xs text-zinc-500">Testing API Connection...</div>
+                    </div>
+
+                    {/* Client Side Section */}
+                    <div class="bg-black/40 rounded-2xl p-6 border border-zinc-800">
+                        <div class="flex items-center gap-2 mb-4 text-sm font-bold text-zinc-400 uppercase tracking-widest">
+                            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                            Browser (HP/User)
+                        </div>
+                        <div id="client-status" class="text-zinc-400 text-sm">Mengecek IP Lokal Browser...</div>
+                        <div id="client-ip" class="mt-2 text-xl font-mono text-green-400">Loading...</div>
+                        <div id="client-api-status" class="mt-4 p-2 rounded bg-zinc-800/50 text-xs text-zinc-500">Testing API Connection...</div>
+                    </div>
+                </div>
+
+                <div class="mt-8 p-6 bg-[#8e44ad]/10 rounded-2xl border border-[#8e44ad]/20">
+                    <h3 class="text-white font-bold mb-2">Kenapa ini penting?</h3>
+                    <p class="text-zinc-400 text-sm leading-relaxed">
+                        Jika <strong>Server</strong> diblokir (403), tapi <strong>Browser User</strong> berhasil, maka kita harus memindahkan pengambilan data ke sisi Client. 
+                        Namun jika Browser User Gagal, itu tandanya API memblokir CORS, dan kita terpaksa harus menggunakan Proxy (Cloudflare/VPN) di sisi Server.
+                    </p>
+                </div>
+
+                <div class="mt-6 flex justify-center">
+                    <button onclick="window.location.reload()" class="px-6 py-2 bg-white text-black font-bold rounded-full hover:bg-zinc-200 transition-all">
+                        Ulangi Test
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script>
+    async function runTest() {
+        // --- CLIENT SIDE TEST (IP Browser Pengunjung) ---
+        const clientIpEl = document.getElementById('client-ip');
+        const clientStatusEl = document.getElementById('client-status');
+        const clientApiStatusEl = document.getElementById('client-api-status');
+
+        try {
+            // 1. Cek IP Browser
+            const ipRes = await fetch('https://api64.ipify.org?format=json');
+            const ipData = await ipRes.json();
+            clientIpEl.innerText = ipData.ip;
+            clientStatusEl.innerText = "IP HP/Browser Anda terdeteksi:";
+
+            // 2. Test Hit API via Browser
+            clientApiStatusEl.innerText = "⏳ Mencoba hit API via Browser...";
+            clientApiStatusEl.className = "mt-4 p-2 rounded bg-blue-500/10 text-xs text-blue-400";
+            
+            try {
+                const apiRes = await fetch('https://www.sankavollerei.com/anime/animasu/latest?page=1');
+                if (apiRes.ok) {
+                    clientApiStatusEl.innerText = "✅ SUCCESS: Browser bisa hit API langsung!";
+                    clientApiStatusEl.className = "mt-4 p-2 rounded bg-green-500/10 text-xs text-green-400";
+                } else {
+                    clientApiStatusEl.innerText = `❌ FAILED: API merespon status ${apiRes.status}`;
+                    clientApiStatusEl.className = "mt-4 p-2 rounded bg-red-500/10 text-xs text-red-400";
+                }
+            } catch (err) {
+                clientApiStatusEl.innerText = "❌ CORS BLOCKED: Browser dilarang hit API langsung.";
+                clientApiStatusEl.className = "mt-4 p-2 rounded bg-orange-500/10 text-xs text-orange-400";
+            }
+        } catch (e) {
+            clientIpEl.innerText = "Gagal Deteksi IP";
+        }
+
+        // --- SERVER SIDE INFO (Diambil via ProxyFetch Proxy) ---
+        // Karena Astro SSR sudah lewat, kita bisa minta API internal kita untuk cek IP Server
+        const serverIpEl = document.getElementById('server-ip');
+        const serverApiStatusEl = document.getElementById('server-api-status');
+
+        try {
+            // Kita gunakan API checker internal yang berjalan di server laptop Anda
+            const serverInfoRes = await fetch('/api/check-server-ip');
+            const serverInfo = await serverInfoRes.json();
+            
+            serverIpEl.innerText = serverInfo.ip;
+            serverApiStatusEl.innerText = serverInfo.apiStatus;
+            serverApiStatusEl.className = serverInfo.isOk 
+                ? "mt-4 p-2 rounded bg-green-500/10 text-xs text-green-400"
+                : "mt-4 p-2 rounded bg-red-500/10 text-xs text-red-400";
+            
+            document.getElementById('server-status').innerText = "IP Laptop/Server terdeteksi:";
+        } catch (e) {
+            serverIpEl.innerText = "Gagal konek ke Server Astro";
+        }
+    }
+
+    runTest();
+</script>

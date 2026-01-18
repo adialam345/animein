@@ -1,0 +1,60 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Footer from '../components/Footer.astro';
+
+export const prerender = true;
+---
+
+<Layout title="404 - Halaman Tidak Ditemukan - ANIMEIN">
+  <main class="min-h-screen pt-32 pb-20 flex flex-col items-center justify-center relative overflow-hidden">
+    {/* Ambient Background */}
+    <div class="fixed inset-0 bg-[radial-gradient(circle_at_center,_rgba(142,68,173,0.1)_0%,_transparent_70%)] pointer-events-none -z-10"></div>
+    <div class="fixed inset-0 bg-[#0a0a0c] -z-20"></div>
+
+    <div class="container mx-auto px-6 text-center space-y-8 animate-fade-in relative z-10">
+      {/* 404 Graphic */}
+      <div class="relative inline-block">
+        <h1 class="text-[150px] md:text-[200px] font-black leading-none tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white/10 to-transparent">
+          404
+        </h1>
+        <div class="absolute inset-0 flex items-center justify-center">
+            <div class="w-32 h-32 md:w-48 md:h-48 rounded-full bg-[#8e44ad]/20 blur-3xl animate-pulse"></div>
+            <p class="absolute text-2xl md:text-3xl font-black text-white uppercase tracking-[0.2em] drop-shadow-2xl">NOT FOUND</p>
+        </div>
+      </div>
+
+      <div class="max-w-md mx-auto space-y-6">
+        <h2 class="text-xl md:text-2xl font-bold text-zinc-400">Wah, sepertinya kamu tersesat!</h2>
+        <p class="text-zinc-500 font-medium leading-relaxed">
+          Halaman yang kamu cari tidak ditemukan atau sedang mengalami gangguan teknis. Coba kembali ke beranda atau cari anime lainnya.
+        </p>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
+        <a 
+          href="/" 
+          class="w-full sm:w-auto px-8 py-4 bg-[#8e44ad] hover:bg-[#a569bd] text-white font-black rounded-2xl transition-all duration-300 shadow-xl shadow-[#8e44ad]/20 hover:-translate-y-1 active:scale-95 text-center"
+        >
+          KEMBALI KE BERANDA
+        </a>
+        <button 
+          onclick="history.back()" 
+          class="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 text-white font-black rounded-2xl border border-white/5 transition-all duration-300 text-center"
+        >
+          TAMPILAN SEBELUMNYA
+        </button>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</Layout>
+
+<style>
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-in {
+    animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+</style>

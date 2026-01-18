@@ -1,6 +1,6 @@
 /**
- * Cloudflare Worker - Video Proxy
- * Untuk menghemat bandwidth VPS dengan proxy video melalui Cloudflare edge
+ * Cloudflare Worker - Multi-purpose Proxy
+ * Digunakan untuk proxy Video (save bandwidth) & API (bypass IP Ban)
  * 
  * CARA DEPLOY:
  * 1. Login ke Cloudflare Dashboard → Workers & Pages
@@ -16,15 +16,15 @@ addEventListener('fetch', event => {
 async function handleRequest(request) {
     const url = new URL(request.url);
 
-    // Get video URL from query parameter
-    const videoUrl = url.searchParams.get('url');
+    // Get target URL from query parameter
+    const targetUrlString = url.searchParams.get('url');
 
-    if (!videoUrl) {
+    if (!targetUrlString) {
         return new Response(JSON.stringify({
-            error: 'Missing url parameter',
-            usage: '?url=<encoded_video_url>'
+            status: 'Nontonin Proxy Active',
+            usage: '?url=<encoded_url>'
         }), {
-            status: 400,
+            status: 200,
             headers: {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
@@ -33,24 +33,23 @@ async function handleRequest(request) {
     }
 
     try {
-        // Decode the video URL
-        const decodedUrl = decodeURIComponent(videoUrl);
+        const decodedUrl = decodeURIComponent(targetUrlString);
+        const targetUrl = new URL(decodedUrl);
 
-        // Validate URL (only allow certain domains for security)
+        // ALLOWLIST: Domains that are allowed to be proxied
         const allowedDomains = [
-            'cdn-cf.berkasdrive.com',
-            'miterequest.my.id',
-            'server10.miterequest.my.id',
-            'server11.miterequest.my.id',
-            'blogger.com',
+            'sankavollerei.com',      // Anime API
+            'sansekai.my.id',         // Anime API
+            'cdn-cf.berkasdrive.com',  // Video Source
+            'miterequest.my.id',      // Video Source
+            'mitedrive.com',          // Video Source
+            'blogger.com',            // Video Source
             'video.google.com',
+            'googlevideo.com',
             'bp.blogspot.com',
-            'lh3.googleusercontent.com',
-            'rr',  // Google video servers (rrX.sn-xxx.googlevideo.com)
-            'googlevideo.com'
+            'lh3.googleusercontent.com'
         ];
 
-        const targetUrl = new URL(decodedUrl);
         const isAllowed = allowedDomains.some(d => targetUrl.hostname.includes(d));
 
         if (!isAllowed) {
@@ -72,32 +71,49 @@ async function handleRequest(request) {
                 status: 204,
                 headers: {
                     'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Range, Content-Type',
+                    'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Range, Content-Type, Authorization',
                     'Access-Control-Max-Age': '86400'
                 }
             });
         }
 
-        // Forward headers for video seeking
+        // Prepare request headers
         const headers = new Headers();
-        if (request.headers.has('Range')) {
-            headers.set('Range', request.headers.get('Range'));
-        }
-        headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
 
-        // Fetch the video from source
-        const response = await fetch(decodedUrl, {
-            method: request.method,
-            headers: headers
+        // Copy standard headers from original request
+        const headersToCopy = ['Range', 'Accept', 'Accept-Language', 'Content-Type'];
+        headersToCopy.forEach(h => {
+            if (request.headers.has(h)) headers.set(h, request.headers.get(h));
         });
 
-        // Create response with proper headers
+        // Add custom User-Agent
+        headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+        // Fetch from source
+        const response = await fetch(decodedUrl, {
+            method: request.method,
+            headers: headers,
+            body: request.method === 'POST' ? await request.arrayBuffer() : null,
+            redirect: 'follow'
+        });
+
+        // Prepare response headers
         const responseHeaders = new Headers(response.headers);
         responseHeaders.set('Access-Control-Allow-Origin', '*');
-        responseHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+        responseHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS');
         responseHeaders.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range');
-        responseHeaders.set('Cache-Control', 'public, max-age=86400'); // Cache 24 hours
+
+        // CACHING LOGIC
+        // Video sources (MP4/m3u8) should be cached long term
+        // API responses (JSON) should be cached short term or not at all
+        const isVideo = decodedUrl.match(/\.(mp4|m3u8|mkv|webm|ts)(\?|$)/) || response.headers.get('Content-Type')?.includes('video');
+
+        if (isVideo) {
+            responseHeaders.set('Cache-Control', 'public, max-age=86400'); // 24 hours
+        } else {
+            responseHeaders.set('Cache-Control', 'public, max-age=60'); // 1 minute for API
+        }
 
         return new Response(response.body, {
             status: response.status,
@@ -117,3 +133,4 @@ async function handleRequest(request) {
         });
     }
 }
+

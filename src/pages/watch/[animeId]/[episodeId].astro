@@ -20,20 +20,29 @@ const episodes = anime.episodes ? [...anime.episodes].reverse() : [];
 const currentEpisodeIndex = episodes.findIndex(ep => ep.url === episodeId) ?? -1;
 const currentEpisode = episodes[currentEpisodeIndex];
 
-// Fetch alternative sources from Nimegami (after we have the title from Animasu detail)
+
+// Fetch alternative sources from Nimegami and Sansekai (after we have the title from Animasu detail)
 let allVideoSources = animasuVideoData?.video || [];
 
 // For movies, episode might not exist in list - use "1" as default
 const episodeNumber = currentEpisode?.ch || "1";
-console.log('[DEBUG] Fetching Nimegami for:', anime.judul, 'Episode:', episodeNumber);
+console.log('[DEBUG] Fetching alternative sources for:', anime.judul, 'Episode:', episodeNumber);
 
-try {
-    const nimegamiSources = await animeApi.getNimegamiVideo(anime.judul, episodeNumber);
-    console.log('[DEBUG] Nimegami sources found:', nimegamiSources.length);
-    allVideoSources = [...allVideoSources, ...nimegamiSources];
-} catch (e) {
-    console.error('Nimegami fetch failed:', e);
-}
+// Fetch from Nimegami and Sansekai in parallel for faster loading
+const [nimegamiSources, sansekaiSources] = await Promise.all([
+    animeApi.getNimegamiVideo(anime.judul, episodeNumber).catch(e => {
+        console.error('Nimegami fetch failed:', e);
+        return [];
+    }),
+    animeApi.getSansekaiVideo(anime.judul, episodeNumber).catch(e => {
+        console.error('Sansekai fetch failed:', e);
+        return [];
+    })
+]);
+
+console.log('[DEBUG] Nimegami sources found:', nimegamiSources.length);
+console.log('[DEBUG] Sansekai sources found:', sansekaiSources.length);
+allVideoSources = [...allVideoSources, ...nimegamiSources, ...sansekaiSources];
 
 if (allVideoSources.length === 0) {
     // If no video sources at all, then 404
@@ -63,8 +72,8 @@ const sortedVideos = [...allVideoSources].sort((a, b) => {
     return getResValue(b.reso) - getResValue(a.reso);
 });
 
-// Validate video URLs - filter out broken links (limit to first 10 for speed)
-const toValidate = sortedVideos.slice(0, 10); // Only validate first 10 servers
+// Validate video URLs - filter out broken links (limit to first 20 for speed)
+const toValidate = sortedVideos.slice(0, 20); // Increased limit to include more servers
 console.log('[DEBUG] Validating', toValidate.length, 'video sources...');
 
 // Add global timeout for validation (8 seconds max)
@@ -90,6 +99,7 @@ try {
 
 const validVideos = validationResults.filter(v => v.isValid);
 console.log('[DEBUG] Valid sources:', validVideos.length, '/', toValidate.length);
+validVideos.forEach(v => console.log('  -> [VALID]:', v.reso, '-', v.link));
 
 // Use validated videos for display, fallback to sorted if none valid
 const finalVideoSources = validVideos.length > 0 ? validVideos : sortedVideos;
@@ -186,17 +196,26 @@ const breadcrumbSchema = {
         <div class="space-y-6 animate-fade-in-up">
           <div class="relative group" id="player-wrapper">
             <div class="relative rounded-3xl overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] bg-black border border-white/5 aspect-video md:aspect-[21/9] lg:aspect-video">
-              {/* Anti-redirect overlay */}
-              <div id="player-overlay" class="absolute inset-0 z-20 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center cursor-pointer transition-all duration-500 hover:bg-black/40">
-                <div class="text-center space-y-4">
-                  <div class="w-20 h-20 mx-auto rounded-full bg-[#8e44ad]/30 flex items-center justify-center border-2 border-[#8e44ad] animate-pulse">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="white" class="ml-1">
-                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
+              {/* Anti-redirect overlay / Loading state */}
+              <div id="player-overlay" class="absolute inset-0 z-20 bg-black/80 backdrop-blur-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-500">
+                <div class="text-center space-y-6">
+                  {/* Loading Spinner (Visible during fetch) */}
+                  <div id="player-loading" class="hidden flex flex-col items-center space-y-4">
+                    <div class="w-16 h-16 mx-auto border-4 border-[#8e44ad]/20 border-t-[#8e44ad] rounded-full animate-spin"></div>
+                    <p class="text-[#a569bd] font-black text-xs uppercase tracking-[0.3em] animate-pulse">Sedang mengambil link...</p>
                   </div>
-                  <div class="space-y-2">
-                    <p class="text-white font-black text-xl uppercase tracking-tight">Klik untuk Putar</p>
-                    <p class="text-zinc-400 text-xs font-medium max-w-[250px] mx-auto">Proteksi anti-redirect aktif. Klik untuk mengaktifkan player.</p>
+
+                  {/* Play Button (Default) */}
+                  <div id="player-play-content" class="space-y-4">
+                    <div class="w-20 h-20 mx-auto rounded-full bg-[#8e44ad]/30 flex items-center justify-center border-2 border-[#8e44ad] shadow-[0_0_30px_rgba(142,68,173,0.3)] transition-transform duration-300 group-hover:scale-110">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="white" class="ml-1">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                      </svg>
+                    </div>
+                    <div class="space-y-2">
+                      <p class="text-white font-black text-xl uppercase tracking-tight">Klik untuk Putar</p>
+                      <p class="text-zinc-500 text-xs font-medium max-w-[250px] mx-auto">Proteksi anti-redirect aktif. Klik untuk mengaktifkan player.</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -216,10 +235,13 @@ const breadcrumbSchema = {
                   src={defaultVideo.link} 
                   allowfullscreen 
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-                  referrerpolicy="no-referrer"
                   class="w-full h-full border-none"
                   id="main-player"
                   data-is-direct="false"
+                  {...(defaultVideo.link.includes('mega.nz') 
+                    ? {} 
+                    : {}
+                  )}
                 ></iframe>
               )}
             </div>
@@ -345,39 +367,51 @@ const breadcrumbSchema = {
         
         const playerContainer = document.querySelector('.aspect-video');
         const currentPlayer = document.getElementById('main-player');
+        const playContent = document.getElementById('player-play-content');
+        const loadingContent = document.getElementById('player-loading');
         
-        if (playerContainer && currentPlayer) {
+        if (playerContainer && currentPlayer && overlay && playContent && loadingContent) {
+          // Show loading state
+          overlay.style.display = 'flex';
+          overlay.style.opacity = '1';
+          overlay.style.pointerEvents = 'auto';
+          playContent.classList.add('hidden');
+          loadingContent.classList.remove('hidden');
+
           // Remove current player
           currentPlayer.remove();
           
-          if (isDirect) {
-            // Create HTML5 video element for direct links
-            const video = document.createElement('video');
-            video.src = link;
-            video.controls = true;
-            video.autoplay = true;
-            video.className = 'w-full h-full border-none bg-black';
-            video.id = 'main-player';
-            video.setAttribute('data-is-direct', 'true');
-            playerContainer.appendChild(video);
-          } else {
-            // Create iframe for embed links
-            const iframe = document.createElement('iframe');
-            iframe.src = link;
-            iframe.className = 'w-full h-full border-none';
-            iframe.id = 'main-player';
-            iframe.setAttribute('allowfullscreen', '');
-            iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen');
-            iframe.setAttribute('referrerpolicy', 'no-referrer');
-            iframe.setAttribute('data-is-direct', 'false');
-            playerContainer.appendChild(iframe);
-          }
-          
-          if (overlay) {
-            overlay.style.display = 'flex';
-            overlay.style.opacity = '1';
-            overlay.style.pointerEvents = 'auto';
-          }
+          // Small delay to show "Sedang mengambil link..."
+          setTimeout(() => {
+            if (isDirect) {
+              const video = document.createElement('video');
+              video.src = link;
+              video.controls = true;
+              video.autoplay = true;
+              video.className = 'w-full h-full border-none bg-black';
+              video.id = 'main-player';
+              video.setAttribute('data-is-direct', 'true');
+              playerContainer.appendChild(video);
+            } else {
+              // Create iframe for embed links
+              const iframe = document.createElement('iframe');
+              iframe.src = link;
+              iframe.className = 'w-full h-full border-none';
+              iframe.id = 'main-player';
+              iframe.setAttribute('allowfullscreen', '');
+              iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen');
+              iframe.setAttribute('data-is-direct', 'false');
+              
+              // Sandbox no longer needed as we use proxy
+              // if (link.includes('mega.nz')) ...
+              
+              playerContainer.appendChild(iframe);
+            }
+
+            // Hide loading, show play content after a bit or just keep overlay until click
+            loadingContent.classList.add('hidden');
+            playContent.classList.remove('hidden');
+          }, 800);
           
           buttons.forEach(b => {
             b.classList.remove('bg-[#8e44ad]', 'border-[#8e44ad]', 'text-white', 'shadow-lg', 'shadow-[#8e44ad]/20');

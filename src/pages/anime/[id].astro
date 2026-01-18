@@ -215,8 +215,36 @@ const breadcrumbSchema = {
       </div>
     </div>
   </main>
+
+  <div id="page-loader" class="fixed inset-0 z-[999] bg-black/80 backdrop-blur-xl flex flex-col items-center justify-center opacity-0 pointer-events-none transition-opacity duration-500">
+    <div class="text-center space-y-6">
+      <div class="w-16 h-16 mx-auto border-4 border-[#8e44ad]/20 border-t-[#8e44ad] rounded-full animate-spin"></div>
+      <p class="text-[#a569bd] font-black text-xs uppercase tracking-[0.3em] animate-pulse italic">Sedang mengambil link...</p>
+    </div>
+  </div>
+
   <Footer />
 </Layout>
+
+<script is:inline>
+  function setupPageLoader() {
+    const loader = document.getElementById('page-loader');
+    const watchLinks = document.querySelectorAll('a[href^="/watch/"]');
+    
+    watchLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        loader.classList.remove('opacity-0', 'pointer-events-none');
+        loader.classList.add('opacity-100', 'pointer-events-auto');
+      });
+    });
+  }
+
+  // Initial setup
+  setupPageLoader();
+
+  // For View Transitions if enabled
+  document.addEventListener('astro:after-swap', setupPageLoader);
+</script>
 
 <style>
   .container {
