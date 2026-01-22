@@ -1,0 +1,267 @@
+---
+import '../../styles/global.css';
+import { validateSession } from '../../lib/admin';
+
+// Server Side Protection
+const sessionCookie = Astro.cookies.get('admin_session');
+if (!sessionCookie || !validateSession(sessionCookie.value)) {
+  return Astro.redirect('/admin/login');
+}
+---
+
+<!doctype html>
+<html lang="id" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Admin Dashboard - AnimeIn</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <style>
+      .stat-card {
+        background: linear-gradient(135deg, rgba(39, 39, 42, 0.8) 0%, rgba(24, 24, 27, 0.9) 100%);
+        backdrop-filter: blur(20px);
+      }
+      .glow-purple { box-shadow: 0 0 40px rgba(168, 85, 247, 0.15); }
+      .glow-blue { box-shadow: 0 0 40px rgba(59, 130, 246, 0.15); }
+      .glow-green { box-shadow: 0 0 40px rgba(34, 197, 94, 0.15); }
+      .glow-orange { box-shadow: 0 0 40px rgba(249, 115, 22, 0.15); }
+      
+      .table-row:hover { background: rgba(255, 255, 255, 0.03); }
+      .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+      @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+      .source-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
+      .source-otakudesu { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+      .source-default { background: rgba(161, 161, 170, 0.2); color: #a1a1aa; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-zinc-950 font-sans text-white">
+    <div id="loadingOverlay" class="fixed inset-0 bg-zinc-950/90 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div class="text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 mb-4">
+          <svg class="animate-spin w-12 h-12 text-purple-500" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+        <p class="text-zinc-400">Memuat dashboard...</p>
+      </div>
+    </div>
+
+    <div class="relative z-10 min-h-screen">
+      <header class="sticky top-0 z-40 backdrop-blur-xl bg-zinc-950/80 border-b border-zinc-800/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+              </div>
+              <div>
+                <h1 class="font-bold text-lg">AnimeIn Admin</h1>
+                <p class="text-xs text-zinc-500">Anime Panel Analytics</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+              <div class="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded-full">
+                <span class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>
+                <span class="text-green-400 text-sm font-medium">Live</span>
+              </div>
+              <button id="refreshBtn" class="p-2 hover:bg-zinc-800 rounded-lg transition-colors"><svg class="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></button>
+              <button id="logoutBtn" class="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors text-sm">Logout</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div class="stat-card glow-blue rounded-2xl p-6 border border-zinc-800/50">
+            <p class="text-3xl font-bold" id="totalVisits">-</p>
+            <p class="text-sm text-zinc-400">Total Kunjungan</p>
+          </div>
+          <div class="stat-card glow-green rounded-2xl p-6 border border-zinc-800/50">
+            <p class="text-3xl font-bold" id="activeUsers">-</p>
+            <p class="text-sm text-zinc-400">User Aktif</p>
+          </div>
+          <div class="stat-card glow-purple rounded-2xl p-6 border border-zinc-800/50">
+            <p class="text-3xl font-bold" id="watchingUsers">-</p>
+            <p class="text-sm text-zinc-400">Sedang Menonton</p>
+          </div>
+        </div>
+
+        <div class="stat-card rounded-2xl border border-zinc-800/50 overflow-hidden">
+          <div class="p-6 border-b border-zinc-800/50 flex items-center justify-between">
+            <h2 class="text-lg font-semibold">User Aktif Sekarang</h2>
+            <span id="lastUpdate" class="text-xs text-zinc-500">Terakhir update: -</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead class="text-xs text-zinc-500 border-b border-zinc-800/50">
+                <tr><th class="p-4">User</th><th class="p-4">Halaman</th><th class="p-4">Film</th><th class="p-4">Waktu</th></tr>
+              </thead>
+              <tbody id="activeUsersTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Error Reports -->
+        <div class="mt-8 stat-card rounded-2xl border border-orange-800/50 overflow-hidden">
+          <div class="p-6 border-b border-orange-800/50 flex items-center justify-between">
+            <h2 class="text-lg font-semibold">Laporan Error</h2>
+            <button id="clearAllErrorsBtn" class="text-xs text-red-400">Hapus Semua</button>
+          </div>
+          <div class="p-4 space-y-3" id="errorReportsList"></div>
+        </div>
+
+        <!-- Update Management -->
+        <div class="mt-8 stat-card rounded-2xl border border-purple-800/50 overflow-hidden">
+          <div class="p-6 border-b border-purple-800/50"><h2 class="text-lg font-semibold">Manajemen Info</h2></div>
+          <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="space-y-4">
+              <input type="text" id="updateTitle" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm" placeholder="Judul Info" />
+              <textarea id="updateContent" rows="3" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-sm" placeholder="Isi pesan..."></textarea>
+              <button id="addUpdateBtn" class="w-full py-2 bg-purple-600 rounded-lg text-sm font-bold">Posting Info</button>
+            </div>
+            <div class="lg:col-span-2 space-y-3" id="updatesList"></div>
+          </div>
+        </div>
+
+        <!-- Maintenance -->
+        <div class="mt-8 stat-card rounded-2xl border border-red-800/50 overflow-hidden mb-12">
+          <div class="p-6 border-b border-red-800/50"><h2 class="text-lg font-semibold text-red-400">Sistem Maintenance</h2></div>
+          <div class="p-6 flex flex-col md:flex-row gap-6">
+            <div class="flex-1 space-y-4">
+              <div class="flex items-center justify-between p-4 bg-zinc-900 rounded-xl">
+                <span>Mode Maintenance</span>
+                <input type="checkbox" id="maintStatus" class="w-5 h-5" />
+              </div>
+              <input type="text" id="maintMessage" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm" placeholder="Pesan Maintenance" />
+              <input type="text" id="maintReturn" class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-sm" placeholder="Perkiraan Kembali" />
+              <button id="saveMaintBtn" class="w-full py-3 bg-red-600 rounded-xl font-bold">Simpan Konfigurasi</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+      <div class="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm p-6" id="confirmContent">
+        <h3 class="text-xl font-bold mb-2">Konfirmasi</h3>
+        <p class="text-zinc-400 mb-6" id="confirmMessage">Apakah Anda yakin?</p>
+        <div class="flex gap-3 justify-end">
+           <button id="cancelBtn" class="px-4 py-2 rounded-lg text-zinc-300">Batal</button>
+           <button id="confirmBtn" class="px-4 py-2 rounded-lg bg-red-600 text-white">Ya, Lanjutkan</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function showToast(m, t = 'success') { console.log(m); alert(m); } // Simplified for now
+      
+      function formatDuration(s: number) {
+        if (s < 60) return `${s}s`;
+        return `${Math.floor(s/60)}m ${s%60}s`;
+      }
+
+      async function fetchAnalytics() {
+        const res = await fetch('/api/admin/analytics');
+        if (res.status === 401) { window.location.href = '/admin/login'; return; }
+        const data = await res.json();
+        
+        document.getElementById('totalVisits')!.textContent = data.totalVisits.toLocaleString();
+        document.getElementById('activeUsers')!.textContent = data.activeUsersCount.toString();
+        document.getElementById('watchingUsers')!.textContent = data.usersWatchingDrama.toString();
+        
+        const tableBody = document.getElementById('activeUsersTable')!;
+        tableBody.innerHTML = data.activeUsers.map((u: any) => `
+          <tr class="table-row border-b border-zinc-800/30">
+            <td class="p-4"><p class="text-sm font-medium">${u.sessionId.substring(0,8)}</p><p class="text-xs text-zinc-500">${u.ip}</p></td>
+            <td class="p-4 text-sm text-zinc-400">${u.currentPage}</td>
+            <td class="p-4 text-sm text-zinc-300">${u.dramaTitle || '-'}</td>
+            <td class="p-4 flex items-center justify-between">
+              <span>${formatDuration(u.timeOnSite)}</span>
+              <button onclick="kickUser('${u.sessionId}')" class="text-red-400">Kick</button>
+            </td>
+          </tr>
+        `).join('');
+        document.getElementById('loadingOverlay')?.classList.add('hidden');
+      }
+
+      (window as any).kickUser = async (sid: string) => {
+        if(!confirm('Kick user ini?')) return;
+        await fetch('/api/admin/analytics', { method: 'POST', body: JSON.stringify({ action: 'kick', targetSessionId: sid }) });
+        fetchAnalytics();
+      };
+
+      setInterval(fetchAnalytics, 5000);
+      fetchAnalytics();
+
+      document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+        await fetch('/api/admin/login', { method: 'DELETE' });
+        window.location.href = '/admin/login';
+      });
+
+      // Maintenance & Updates logic omitted for brevity in initial write but added to APIs
+      async function fetchMaintenance() {
+          const res = await fetch('/api/admin/maintenance');
+          const data = await res.json();
+          (document.getElementById('maintStatus') as HTMLInputElement).checked = data.isMaintenance;
+          (document.getElementById('maintMessage') as HTMLInputElement).value = data.message;
+          (document.getElementById('maintReturn') as HTMLInputElement).value = data.expectedReturn;
+      }
+      document.getElementById('saveMaintBtn')?.addEventListener('click', async () => {
+          const isMaintenance = (document.getElementById('maintStatus') as HTMLInputElement).checked;
+          const message = (document.getElementById('maintMessage') as HTMLInputElement).value;
+          const expectedReturn = (document.getElementById('maintReturn') as HTMLInputElement).value;
+          await fetch('/api/admin/maintenance', { method: 'POST', body: JSON.stringify({ isMaintenance, message, expectedReturn }) });
+          alert('Maintenance saved');
+      });
+      fetchMaintenance();
+
+      async function fetchUpdates() {
+          const res = await fetch('/api/admin/updates');
+          const data = await res.json();
+          document.getElementById('updatesList')!.innerHTML = data.updates.map((u:any) => `
+            <div class="p-3 bg-zinc-900 rounded-lg flex justify-between">
+              <div><p class="font-bold">${u.title}</p><p class="text-xs text-zinc-500">${u.content}</p></div>
+              <button onclick="deleteUpdate('${u.id}')" class="text-red-400">Del</button>
+            </div>
+          `).join('');
+      }
+      document.getElementById('addUpdateBtn')?.addEventListener('click', async () => {
+          const title = (document.getElementById('updateTitle') as HTMLInputElement).value;
+          const content = (document.getElementById('updateContent') as HTMLTextAreaElement).value;
+          await fetch('/api/admin/updates', { method: 'POST', body: JSON.stringify({ title, content }) });
+          fetchUpdates();
+      });
+      (window as any).deleteUpdate = async (id: string) => {
+          await fetch('/api/admin/updates', { method: 'DELETE', body: JSON.stringify({ id }) });
+          fetchUpdates();
+      };
+      fetchUpdates();
+
+      async function fetchErrorReports() {
+          const res = await fetch('/api/admin/error-reports');
+          const data = await res.json();
+          document.getElementById('errorReportsList')!.innerHTML = data.reports.map((r: any) => `
+            <div class="p-3 bg-orange-500/5 border border-orange-500/20 rounded-lg flex justify-between">
+              <p class="text-xs break-all">${r.url}</p>
+              <button onclick="resolveError('${r.id}')" class="text-green-400">Fix</button>
+            </div>
+          `).join('');
+      }
+      (window as any).resolveError = async (id: string) => {
+          await fetch('/api/admin/error-reports', { method: 'DELETE', body: JSON.stringify({ id, action: 'delete' }) });
+          fetchErrorReports();
+      };
+      fetchErrorReports();
+    </script>
+  </body>
+</html>

@@ -152,9 +152,26 @@ const breadcrumbSchema = {
                 <span class="w-1.5 h-1.5 rounded-full bg-[#8e44ad]"></span>
                 <span>{anime.studio}</span>
               </div>
-              <h1 class="text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">
-                {anime.judul}
-              </h1>
+              <div class="flex items-center justify-between gap-4">
+                <h1 
+                  class="text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight"
+                  data-anime-title={anime.judul}
+                  data-anime-source="otakudesu"
+                >
+                  {anime.judul}
+                </h1>
+                <button 
+                  id="reportErrorBtn"
+                  class="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-600/20 hover:bg-orange-600/40 border border-orange-500/30 transition-all duration-300 h-fit mt-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-400 group-hover:text-orange-200">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                  <span class="text-[10px] font-black text-orange-300 group-hover:text-orange-100 uppercase tracking-widest">Error?</span>
+                </button>
+              </div>
             </div>
 
             {/* Genres */}
@@ -227,16 +244,34 @@ const breadcrumbSchema = {
 </Layout>
 
 <script is:inline>
+  function initErrorReport() {
+    const reportBtn = document.getElementById('reportErrorBtn');
+    if (reportBtn) {
+      reportBtn.addEventListener('click', async () => {
+        reportBtn.setAttribute('disabled', 'true');
+        reportBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        await fetch('/api/admin/error-reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: window.location.href })
+        });
+        alert('Laporan terkirim! Gunakan Chrome jika masih error.');
+        window.location.reload();
+      });
+    }
+  }
+
   function setupPageLoader() {
     const loader = document.getElementById('page-loader');
     const watchLinks = document.querySelectorAll('a[href^="/watch/"]');
     
     watchLinks.forEach(link => {
       link.addEventListener('click', () => {
-        loader.classList.remove('opacity-0', 'pointer-events-none');
-        loader.classList.add('opacity-100', 'pointer-events-auto');
+        loader!.classList.remove('opacity-0', 'pointer-events-none');
+        loader!.classList.add('opacity-100', 'pointer-events-auto');
       });
     });
+    initErrorReport();
   }
 
   // Initial setup

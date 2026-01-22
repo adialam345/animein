@@ -77,11 +77,29 @@ const defaultVideo = sortedVideos[0] || videoData.video[0];
           {/* Episode Info & Quality Selector */}
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="md:col-span-2 bg-white/5 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-white/5 space-y-4">
-              <div class="space-y-1">
-                <span class="text-[#a569bd] font-black text-xs uppercase tracking-[0.2em]">Now Playing</span>
-                <h1 class="text-2xl md:text-3xl font-black text-white tracking-tight">
-                  Episode {videoData.episode_id.split('-').pop()}
-                </h1>
+              <div class="flex items-center justify-between gap-4">
+                <div class="space-y-1">
+                  <span class="text-[#a569bd] font-black text-xs uppercase tracking-[0.2em]">Now Playing</span>
+                  <h1 
+                    class="text-2xl md:text-3xl font-black text-white tracking-tight"
+                    data-anime-title={videoData.episode_id.split('-').slice(0, -1).join(' ')}
+                    data-anime-source="otakudesu"
+                    data-episode-number={videoData.episode_id.split('-').pop()}
+                  >
+                    Episode {videoData.episode_id.split('-').pop()}
+                  </h1>
+                </div>
+                <button 
+                  id="reportErrorBtn"
+                  class="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-600/20 hover:bg-orange-600/40 border border-orange-500/30 transition-all duration-300"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-orange-400 group-hover:text-orange-200">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                  <span class="text-[10px] font-black text-orange-300 group-hover:text-orange-100 uppercase tracking-widest">Error?</span>
+                </button>
               </div>
               <p class="text-zinc-500 font-medium text-sm leading-relaxed">
                 ID: {videoData.episode_id}. Jika video tidak berputar, silakan coba ganti resolusi atau gunakan browser Chrome.
@@ -125,10 +143,29 @@ const defaultVideo = sortedVideos[0] || videoData.video[0];
 </Layout>
 
 <script>
+  function initErrorReport() {
+    const reportBtn = document.getElementById('reportErrorBtn');
+    if (reportBtn) {
+      reportBtn.addEventListener('click', async () => {
+        reportBtn.setAttribute('disabled', 'true');
+        reportBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        await fetch('/api/admin/error-reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: window.location.href })
+        });
+        alert('Laporan terkirim! Gunakan Chrome jika masih error.');
+        window.location.reload();
+      });
+    }
+  }
+
   function initPlayer() {
     const buttons = document.querySelectorAll('.server-btn');
     const player = document.getElementById('main-player') as HTMLIFrameElement;
     const overlay = document.getElementById('player-overlay');
+    
+    initErrorReport();
 
     // Handle overlay click - activate player
     if (overlay) {

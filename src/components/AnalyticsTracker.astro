@@ -1,0 +1,144 @@
+
+---
+// Analytics tracker component - embeds in all pages to track user activity
+---
+
+<script>
+  function getSessionId(): string {
+    let sessionId = sessionStorage.getItem('_sid_v1');
+    if (!sessionId) {
+      sessionId = 'u_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+      sessionStorage.setItem('_sid_v1', sessionId);
+    }
+    return sessionId;
+  }
+
+  function getAnimeInfo(): { dramaTitle?: string; dramaSource?: string; episodeNumber?: number } {
+    const path = window.location.pathname;
+    
+    if (!path.includes('/watch/') && !path.includes('/anime/')) {
+      return {};
+    }
+    
+    const dataEl = document.querySelector('[data-anime-title]') as HTMLElement;
+    if (dataEl?.dataset?.animeTitle) {
+      return {
+        dramaTitle: dataEl.dataset.animeTitle,
+        dramaSource: dataEl.dataset.animeSource || 'default',
+        episodeNumber: dataEl.dataset.episodeNumber ? 
+          parseInt(dataEl.dataset.episodeNumber) : undefined
+      };
+    }
+    
+    const titleEl = document.querySelector('h1');
+    let title = titleEl?.textContent?.trim();
+    
+    if (!title) {
+      const pageTitle = document.title;
+      title = pageTitle.split(' - ')[0];
+    }
+    
+    return {
+      dramaTitle: title || 'Unknown Anime',
+      dramaSource: 'default'
+    };
+  }
+
+  let isBlocked = false;
+  let heartbeatInterval: any;
+  let evtSource: EventSource | undefined;
+
+  async function sendAnalytics(action: 'pageview' | 'heartbeat' | 'leave') {
+    if (isBlocked) return;
+
+    const sessionId = getSessionId();
+    const animeInfo = getAnimeInfo();
+    
+    try {
+      const res = await fetch('/api/admin/analytics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          sessionId,
+          page: window.location.pathname,
+          ...animeInfo
+        }),
+        keepalive: action === 'leave'
+      });
+      
+      if (res.status === 403) { handleBlock(); }
+    } catch (e) {}
+  }
+
+  function handleBlock() {
+     if (isBlocked) return;
+     isBlocked = true;
+     
+     const exitFS = () => {
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+     };
+     exitFS();
+     
+     const videos = document.querySelectorAll('video, iframe');
+     videos.forEach(v => {
+        v.remove();
+     });
+     
+     if (heartbeatInterval) clearInterval(heartbeatInterval);
+     if (evtSource) evtSource.close();
+     
+     sessionStorage.removeItem('_sid_v1');
+     document.body.style.overflow = 'hidden';
+     
+     const overlay = document.createElement('div');
+     overlay.className = 'fixed inset-0 z-[2147483647] bg-black flex flex-col items-center justify-center p-4 text-center';
+     overlay.innerHTML = `
+        <h2 class="text-2xl font-bold text-white mb-2">Koneksi Terputus</h2>
+        <p class="text-zinc-400 mb-8">Koneksi Anda telah diputus oleh admin.</p>
+        <a href="/" class="px-6 py-2 bg-white text-black font-semibold rounded-full">Beranda</a>
+     `;
+     document.body.appendChild(overlay);
+  }
+
+  function handleMaintenance(data: any) {
+     if ((window as any).showGlobalMaintenance) {
+        (window as any).showGlobalMaintenance(data.message, data.expectedReturn);
+     } else {
+        window.location.reload();
+     }
+  }
+
+  function connectRealtimeStream() {
+    if (isBlocked) return;
+    const sessionId = getSessionId();
+    if (evtSource) evtSource.close();
+
+    evtSource = new EventSource(`/api/admin/stream?sessionId=${sessionId}`);
+    
+    evtSource.onmessage = (event) => {
+        if (event.data === 'kick') {
+             handleBlock();
+        } else if (event.data.startsWith('maintenance|')) {
+             const dataStr = event.data.replace('maintenance|', '');
+             try {
+                const data = JSON.parse(dataStr);
+                if (data.isMaintenance) {
+                   handleMaintenance(data);
+                } else {
+                   if(document.getElementById('maint-overlay')) window.location.reload();
+                }
+             } catch(e) {}
+        }
+    };
+  }
+
+  document.addEventListener('astro:page-load', () => {
+     sendAnalytics('pageview');
+     connectRealtimeStream();
+  });
+
+  heartbeatInterval = setInterval(() => { sendAnalytics('heartbeat'); }, 60000);
+  window.addEventListener('beforeunload', () => { sendAnalytics('leave'); });
+</script>
